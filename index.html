@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexus | 智能学术润色引擎</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="background-glow"></div>
+
+    <div class="container">
+        <header class="glass-panel">
+            <h1><span class="gradient-text">Nexus</span> 学术写作引擎</h1>
+            <p class="instruction">
+                驱动级多轮学术润色与文献解析。请配置您的 API 密钥以激活引擎。支持全学科（理工/医学/人文）的 Abstract 优化、结构重组与专业语境改写。
+            </p>
+        </header>
+
+        <section class="config-section glass-panel">
+            <div class="input-group">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="icon"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"></path></svg>
+                <input type="password" id="apiKey" placeholder="输入阿里云百炼 API Key (sk-...)" autocomplete="off">
+            </div>
+            <p class="security-notice">密钥采用端到端内存级加密传输，零服务器留存，保障科研数据绝对安全。</p>
+        </section>
+
+        <div id="errorBanner" class="error-banner hidden"></div>
+
+        <section class="chat-container glass-panel">
+            <div id="chatHistory" class="chat-history"></div>
+
+            <div id="loadingIndicator" class="loading hidden">
+                <div class="ai-pulse"></div>
+                <span>Nexus 引擎正在深度解析您的学术文本...</span>
+            </div>
+        </section>
+
+        <section class="input-section glass-panel">
+            <textarea id="userInput" placeholder="在此输入文献笔记或论文草稿... &#10;(例如：本文探讨了气候变化对极地生态系统的影响，提出了一种新的碳排放预测模型...请帮我润色为符合 Nature 期刊规范的英文 Abstract，并使其更具逻辑连贯性。)"></textarea>
+            <div class="button-group">
+                <button id="clearBtn" class="btn secondary-btn">清空对话</button>
+                <button id="sendBtn" class="btn primary-btn">
+                    开始润色
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"></path></svg>
+                </button>
+            </div>
+        </section>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
