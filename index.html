@@ -1006,18 +1006,18 @@
           <div class="device-panel">
             <div class="device-title-row">
               <span class="device-title">采集设备</span>
-              <span class="device-support" id="deviceSupportText">正在检查USB设备访问能力...</span>
+              <span class="device-support" id="deviceSupportText">正在检查采集设备访问能力...</span>
             </div>
 
             <div class="device-controls">
               <select class="device-select" id="deviceSelect" aria-label="选择采集设备">
-                <option value="local">选择毫米波雷达设备</option>
+                <option value="" selected>请先选择采集设备</option>
               </select>
-              <button class="btn-device" id="chooseDeviceBtn" type="button">选择USB设备</button>
+              <button class="btn-device" id="chooseDeviceBtn" type="button">选择采集设备</button>
             </div>
 
-            <div class="device-message" id="deviceMessage">
-              当前使用本机模拟采集。连接毫米波雷达后，请点击“选择USB设备”。
+            <div class="device-message warning" id="deviceMessage">
+              尚未选择采集设备，请点击“选择采集设备”。
             </div>
           </div>
 
@@ -1134,7 +1134,7 @@
 
     let selectedUsbDevice = null;
     let authorizedUsbDevices = [];
-    let selectedDeviceMode = 'local';
+    let selectedDeviceMode = 'none';
 
     let animId = null;
     let lastAnimTime = 0;
@@ -1229,14 +1229,15 @@
 
     function initUsbSupport() {
       if ('usb' in navigator) {
-        deviceSupportText.textContent = '支持USB设备授权选择';
+        deviceSupportText.textContent = '请选择毫米波雷达采集设备';
         chooseDeviceBtn.disabled = false;
+        setDeviceMessage('尚未选择采集设备，请点击“选择采集设备”。', 'warning');
       } else {
-        deviceSupportText.textContent = '当前浏览器不支持WebUSB';
+        deviceSupportText.textContent = '当前浏览器不支持采集设备选择';
         chooseDeviceBtn.disabled = true;
         setDeviceMessage(
-          '当前浏览器无法直接选择USB设备。可继续使用本机模拟采集，或改用支持WebUSB的桌面浏览器。',
-          'warning'
+          '无法访问采集设备，请使用支持设备连接的桌面浏览器并通过安全页面打开。',
+          'error'
         );
       }
     }
@@ -1256,18 +1257,18 @@
       const name = [manufacturerName, productName].filter(Boolean).join(' ');
       if (name && ids) return `${name} (${ids})`;
       if (name) return name;
-      if (ids) return `USB毫米波雷达 ${ids}`;
-      return `已授权USB设备 ${index + 1}`;
+      if (ids) return `毫米波雷达设备 ${ids}`;
+      return `已授权采集设备 ${index + 1}`;
     }
 
     function rebuildDeviceOptions(preferredDevice = null) {
-      const previousValue = deviceSelect.value;
+      const previousDevice = selectedUsbDevice;
       deviceSelect.innerHTML = '';
 
-      const localOption = document.createElement('option');
-      localOption.value = 'local';
-      localOption.textContent = '请连接毫米波雷达设备';
-      deviceSelect.appendChild(localOption);
+      const placeholderOption = document.createElement('option');
+      placeholderOption.value = '';
+      placeholderOption.textContent = '请先选择采集设备';
+      deviceSelect.appendChild(placeholderOption);
 
       authorizedUsbDevices.forEach((device, index) => {
         const option = document.createElement('option');
@@ -1276,29 +1277,20 @@
         deviceSelect.appendChild(option);
       });
 
-      if (preferredDevice) {
-        const index = authorizedUsbDevices.indexOf(preferredDevice);
+      const targetDevice = preferredDevice || previousDevice;
+      if (targetDevice) {
+        const index = authorizedUsbDevices.indexOf(targetDevice);
         if (index >= 0) {
           deviceSelect.value = `usb-${index}`;
-          selectedUsbDevice = preferredDevice;
+          selectedUsbDevice = targetDevice;
           selectedDeviceMode = 'usb';
           return;
         }
       }
 
-      if (previousValue.startsWith('usb-')) {
-        const index = Number(previousValue.replace('usb-', ''));
-        if (Number.isInteger(index) && authorizedUsbDevices[index]) {
-          deviceSelect.value = previousValue;
-          selectedUsbDevice = authorizedUsbDevices[index];
-          selectedDeviceMode = 'usb';
-          return;
-        }
-      }
-
-      deviceSelect.value = 'local';
+      deviceSelect.value = '';
       selectedUsbDevice = null;
-      selectedDeviceMode = 'local';
+      selectedDeviceMode = 'none';
     }
 
     async function loadAuthorizedUsbDevices() {
@@ -1308,20 +1300,23 @@
         authorizedUsbDevices = await navigator.usb.getDevices();
         rebuildDeviceOptions();
 
-        if (authorizedUsbDevices.length > 0) {
-          setDeviceMessage(
-            `已发现 ${authorizedUsbDevices.length} 个曾授权的USB设备，可从下拉框选择。`,
-            'success'
-          );
+        if (selectedUsbDevice) {
+          const index = authorizedUsbDevices.indexOf(selectedUsbDevice);
+          setDeviceMessage(`当前采集设备：${usbDeviceLabel(selectedUsbDevice, Math.max(0, index))}`, 'success');
+        } else if (authorizedUsbDevices.length > 0) {
+          setDeviceMessage(`已发现 ${authorizedUsbDevices.length} 个采集设备，请从下拉框选择后开始采集。`, 'warning');
+        } else {
+          setDeviceMessage('尚未选择采集设备，请点击“选择采集设备”。', 'warning');
         }
       } catch (error) {
-        console.warn('读取已授权USB设备失败：', error);
+        console.warn('读取已授权采集设备失败：', error);
+        setDeviceMessage('采集设备列表读取失败，请重新点击“选择采集设备”。', 'error');
       }
     }
 
     async function chooseUsbDevice() {
       if (!('usb' in navigator)) {
-        setDeviceMessage('当前浏览器不支持USB设备选择。', 'error');
+        setDeviceMessage('当前浏览器不支持采集设备选择。', 'error');
         return;
       }
 
@@ -1334,7 +1329,7 @@
       chooseDeviceBtn.textContent = '等待选择...';
 
       try {
-        // 不限定 VID/PID，让用户从浏览器允许访问的 USB 设备中选择。
+        // 不限定 VID/PID，让用户从浏览器允许访问的 采集设备 设备中选择。
         const device = await navigator.usb.requestDevice({ filters: [] });
 
         if (!authorizedUsbDevices.includes(device)) {
@@ -1347,16 +1342,16 @@
         appendLog(`采集设备已切换为：${label}`);
       } catch (error) {
         if (error?.name === 'NotFoundError') {
-          setDeviceMessage('未选择设备，继续使用原来的采集设备。', 'warning');
+          setDeviceMessage('未选择采集设备，请完成设备选择后再开始采集。', 'warning');
         } else if (error?.name === 'SecurityError') {
-          setDeviceMessage('浏览器拒绝访问该USB设备，请检查HTTPS环境、设备驱动或浏览器权限。', 'error');
+          setDeviceMessage('浏览器拒绝访问该采集设备，请检查HTTPS环境、设备驱动或浏览器权限。', 'error');
         } else {
           console.error(error);
-          setDeviceMessage(`USB设备选择失败：${error?.message || '未知错误'}`, 'error');
+          setDeviceMessage(`采集设备选择失败：${error?.message || '未知错误'}`, 'error');
         }
       } finally {
         chooseDeviceBtn.disabled = false;
-        chooseDeviceBtn.textContent = '选择USB设备';
+        chooseDeviceBtn.textContent = '选择采集设备';
       }
     }
 
@@ -1367,11 +1362,10 @@
       }
 
       const value = deviceSelect.value;
-      if (value === 'local') {
-        selectedDeviceMode = 'local';
+      if (!value) {
+        selectedDeviceMode = 'none';
         selectedUsbDevice = null;
-        setDeviceMessage('当前使用本机模拟采集，不会直接读取毫米波雷达USB数据。');
-        appendLog('采集设备已切换为：本机模拟采集。');
+        setDeviceMessage('尚未选择采集设备，请先选择设备。', 'warning');
         return;
       }
 
@@ -1379,10 +1373,10 @@
       const device = authorizedUsbDevices[index];
 
       if (!device) {
-        deviceSelect.value = 'local';
-        selectedDeviceMode = 'local';
+        deviceSelect.value = '';
+        selectedDeviceMode = 'none';
         selectedUsbDevice = null;
-        setDeviceMessage('所选USB设备不可用，已切换为本机模拟采集。', 'error');
+        setDeviceMessage('所选采集设备当前不可用，请重新选择。', 'error');
         return;
       }
 
@@ -1390,7 +1384,7 @@
       selectedUsbDevice = device;
       const label = usbDeviceLabel(device, index);
       setDeviceMessage(`当前采集设备：${label}`, 'success');
-      appendLog(`采集设备已切换为：${label}`);
+      appendLog(`采集设备已选择：${label}`);
     }
 
     function currentDeviceLabel() {
@@ -1398,7 +1392,7 @@
         const index = authorizedUsbDevices.indexOf(selectedUsbDevice);
         return usbDeviceLabel(selectedUsbDevice, Math.max(0, index));
       }
-      return '本机模拟采集';
+      return '未选择采集设备';
     }
 
     function formatRadarElapsed(totalSeconds) {
@@ -1589,15 +1583,15 @@
       radarCaptureBtn.disabled = true;
       radarCaptureBtn.classList.remove('collecting');
       radarCaptureBtn.classList.add('complete');
-      radarCaptureBtn.textContent = '正在生成文件...';
+      radarCaptureBtn.textContent = '即将生成文件...';
 
       radarStatus.classList.remove('collecting');
       radarStatus.classList.add('complete');
-      radarStatusText.textContent = '采集结束，正在生成bin文件';
+      radarStatusText.textContent = '采集结束，即将生成bin文件';
       radarCountdown.textContent = formatRadarElapsed(radarElapsedSeconds);
       radarProgressBar.style.width = '100%';
 
-      appendLog(`毫米波雷达信号采集结束，设备：${currentDeviceLabel()}，采集时长 ${formatRadarDurationMs(radarCaptureDurationMs)}。正在生成 ${filename}。`);
+      appendLog(`毫米波雷达信号采集结束，设备：${currentDeviceLabel()}，采集时长 ${formatRadarDurationMs(radarCaptureDurationMs)}。即将生成 ${filename}。`);
 
       radarBinGenerateTimer = setTimeout(() => {
         radarBinGenerateTimer = null;
@@ -1615,6 +1609,16 @@
       // 采集中再次点击，即由用户手动结束采集
       if (radarCaptureRunning) {
         finishRadarCapture();
+        return;
+      }
+
+      if (selectedDeviceMode !== 'usb' || !selectedUsbDevice) {
+        setDeviceMessage('尚未选择采集设备，请先点击“选择采集设备”。', 'warning');
+        radarStatusText.textContent = '请先选择采集设备';
+        radarCountdown.textContent = '00:00';
+        deviceSelect.focus();
+        appendLog('无法开始毫米波雷达采集：尚未选择采集设备。');
+        alert('请先选择采集设备，再开始毫米波雷达信号采集。');
         return;
       }
 
@@ -2785,10 +2789,10 @@
 
         if (selectedUsbDevice && event.device === selectedUsbDevice) {
           selectedUsbDevice = null;
-          selectedDeviceMode = 'local';
+          selectedDeviceMode = 'none';
           rebuildDeviceOptions();
-          setDeviceMessage('USB设备已断开，已切换为本机模拟采集。', 'warning');
-          appendLog('USB采集设备已断开，系统已切换为本机模拟采集。');
+          setDeviceMessage('采集设备已断开，请重新选择设备。', 'warning');
+          appendLog('采集设备已断开，请重新选择设备后再开始采集。');
         }
       });
     }
